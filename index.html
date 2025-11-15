@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Post Search App</title>
+  <!-- Farcaster Frame Meta Tags -->
+  <meta property="og:title" content="Post Search Mini App" />
+  <meta property="og:description" content="Search your posts by keywords. Add, search, and delete posts easily!" />
+  <meta property="og:image" content="https://placehold.co/600x400?text=Post+Search+Mini+App" />
+  <meta property="fc:frame" content="vNext" />
+  <meta property="fc:frame:button:1" content="Search" />
+  <!-- End Farcaster Frame Meta Tags -->
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 400px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.5em; margin-bottom: 16px; }
+    input[type="text"] { width: 100%; padding: 8px; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 4px; }
+    ul { list-style: none; padding: 0; }
+    li { background: #e9e9e9; margin-bottom: 8px; padding: 10px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Search Your Posts</h1>
+    <div id="loginSection">
+      <input type="text" id="usernameInput" placeholder="Enter your username..." />
+      <button onclick="login()" style="width:100%;margin-top:8px;">Login</button>
+    </div>
+    <div id="appSection" style="display:none;">
+      <div style="margin-bottom:12px;">Logged in as <span id="currentUser"></span> <button onclick="logout()" style="float:right;">Logout</button></div>
+      <input type="text" id="searchInput" placeholder="Type a word to search..." oninput="searchPosts()" />
+      <form id="addPostForm" onsubmit="addPost(event)">
+        <input type="text" id="newPostInput" placeholder="Write a new post..." />
+        <button type="submit" style="margin-top:8px;width:100%">Add Post</button>
+      </form>
+      <ul id="postsList"></ul>
+      <div id="noPostsMsg" style="display:none;color:#888;text-align:center;margin-top:16px;">No posts found.</div>
+    </div>
+  </div>
+  <script>
+    let username = '';
+    let posts = [];
+
+    function showLogin(show) {
+      document.getElementById('loginSection').style.display = show ? '' : 'none';
+      document.getElementById('appSection').style.display = show ? 'none' : '';
+    }
+
+    function login() {
+      const input = document.getElementById('usernameInput');
+      const value = input.value.trim();
+      if (!value) return alert('Please enter a username.');
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: value })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          username = value;
+          document.getElementById('currentUser').textContent = username;
+          showLogin(false);
+          fetchPosts();
+        } else {
+          alert('Login failed.');
+        }
+      });
+    }
+
+    function logout() {
+      username = '';
+      posts = [];
+      showLogin(true);
+      document.getElementById('usernameInput').value = '';
+      renderPosts([]);
+    }
+
+    function fetchPosts() {
+      fetch(`/api/posts/${encodeURIComponent(username)}`)
+        .then(res => res.json())
+        .then(data => {
+          posts = data.posts || [];
+          renderPosts(posts);
+        });
+    }
+
+    function renderPosts(listToShow) {
+      const list = document.getElementById('postsList');
+      const noPostsMsg = document.getElementById('noPostsMsg');
+      list.innerHTML = '';
+      if (!listToShow || listToShow.length === 0) {
+        noPostsMsg.style.display = 'block';
+      } else {
+        noPostsMsg.style.display = 'none';
+        listToShow.forEach(post => {
+          const li = document.createElement('li');
+          li.textContent = post.content;
+          // Add delete button
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.style.cssText = 'float:right;background:#ff4d4d;color:#fff;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;';
+          delBtn.onclick = function() { deletePost(post.id); };
+          li.appendChild(delBtn);
+          list.appendChild(li);
+        });
+      }
+    }
+
+    function searchPosts() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) {
+        renderPosts(posts);
+        return;
+      }
+      fetch(`/api/search?username=${encodeURIComponent(username)}&keywords=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+          renderPosts(data.posts || []);
+        });
+    }
+
+    function addPost(event) {
+      event.preventDefault();
+      const input = document.getElementById('newPostInput');
+      const value = input.value.trim();
+      if (!value) return;
+      fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, content: value })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          input.value = '';
+          fetchPosts();
+        } else {
+          alert('Failed to add post.');
+        }
+      });
+    }
+
+    function deletePost(postId) {
+      fetch(`/api/posts/${encodeURIComponent(username)}/${postId}`, {
+        method: 'DELETE'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          fetchPosts();
+        } else {
+          alert('Failed to delete post.');
+        }
+      });
+    }
+
+    // On page load, show login
+    showLogin(true);
+  </script>
+</body>
+</html>

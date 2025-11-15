@@ -1,0 +1,18 @@
+{
+  "name": "post-search-app",
+  "version": "1.0.0",
+  "description": "Mini app to search posts by keywords",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["search", "posts", "base"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
+  }
+}
